@@ -1,4 +1,5 @@
 from flask import Flask, request, jsonify
+from flask_cors import CORS
 from groq import Groq
 import os
 import threading
@@ -6,36 +7,29 @@ import time
 import requests
 from dotenv import load_dotenv
 
-# Load environment variables from .env
 load_dotenv()
-
 app = Flask(__name__)
+CORS(app)  # Enable CORS
 
-# Initialize Groq client with API key from .env
 client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
 
-# Background task to send a request every 14 minutes
 def periodic_request():
     while True:
         try:
-            print("⏰ Sending periodic request...")
-            res = requests.post("http://127.0.0.1:5000/chat", json={"message": "Ping for keep-alive"})
-            print("✅ Response:", res.json())
+            requests.get("https://your-app.onrender.com/ping")
+            time.sleep(14 * 60)
         except Exception as e:
-            print("❌ Error in periodic request:", e)
-        time.sleep(14 * 60)  # 14 minutes in seconds
+            print("Keep-alive failed:", e)
 
 @app.route("/chat", methods=["POST"])
 def chat():
     data = request.get_json()
-    print(f"📩 Received message: {data}")
     user_message = data.get("message", "")
 
     if not user_message:
-        return jsonify({"error": "Message is required."}), 400
+        return jsonify({"response": "Message is required."}), 400
 
     try:
-        # Send user's message to Groq LLM
         chat_completion = client.chat.completions.create(
             messages=[
                 {"role": "system", "content": "You are a helpful AI assistant."},
@@ -43,15 +37,15 @@ def chat():
             ],
             model="llama3-70b-8192"
         )
-
-        # Extract reply
-        reply = chat_completion.choices[0].message.content
-        return jsonify({"reply": reply})
+        return jsonify({"response": chat_completion.choices[0].message.content})  # Key changed
 
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"response": f"Error: {str(e)}"}), 500
+
+@app.route("/ping")
+def ping():
+    return jsonify({"status": "alive"})
 
 if __name__ == "__main__":
-    # Start background thread for periodic request
     threading.Thread(target=periodic_request, daemon=True).start()
-    app.run(debug=True)
+    app.run()
