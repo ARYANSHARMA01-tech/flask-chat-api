@@ -1,6 +1,9 @@
 from flask import Flask, request, jsonify
 from groq import Groq
 import os
+import threading
+import time
+import requests
 from dotenv import load_dotenv
 
 # Load environment variables from .env
@@ -11,10 +14,21 @@ app = Flask(__name__)
 # Initialize Groq client with API key from .env
 client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
 
+# Background task to send a request every 14 minutes
+def periodic_request():
+    while True:
+        try:
+            print("⏰ Sending periodic request...")
+            res = requests.post("http://127.0.0.1:5000/chat", json={"message": "Ping for keep-alive"})
+            print("✅ Response:", res.json())
+        except Exception as e:
+            print("❌ Error in periodic request:", e)
+        time.sleep(14 * 60)  # 14 minutes in seconds
+
 @app.route("/chat", methods=["POST"])
 def chat():
     data = request.get_json()
-    print(f"Received message: {data}")
+    print(f"📩 Received message: {data}")
     user_message = data.get("message", "")
 
     if not user_message:
@@ -38,4 +52,6 @@ def chat():
         return jsonify({"error": str(e)}), 500
 
 if __name__ == "__main__":
+    # Start background thread for periodic request
+    threading.Thread(target=periodic_request, daemon=True).start()
     app.run(debug=True)
