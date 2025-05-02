@@ -32,7 +32,7 @@ def chat():
     try:
         chat_completion = client.chat.completions.create(
             messages=[
-                {"role": "system", "content": "You are a helpful AI assistant."},
+                {"role": "system", "content": "You are a helpful AI assistant.I want response in json format"},
                 {"role": "user", "content": user_message}
             ],
             model="llama3-70b-8192"
